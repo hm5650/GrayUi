@@ -2,8 +2,6 @@
 local GrayUI = {}
 GrayUI.__index = GrayUI
 
--- Loadstring to use: loadstring(game:HttpGet("https://raw.githubusercontent.com/yourusername/grayui/main/source.lua"))()
-
 local TweenService = game:GetService("TweenService")
 
 function GrayUI.new(title)
