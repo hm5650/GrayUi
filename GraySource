@@ -1,11 +1,16 @@
--- GrayUI Library
+-- Enhanced GrayUI Library with draggable and resizable features
 local GrayUI = {}
 GrayUI.__index = GrayUI
 
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 function GrayUI.new(title)
     local self = setmetatable({}, GrayUI)
+    
+    -- Constants
+    local MIN_WIDTH = 250
+    local MIN_HEIGHT = 200
     
     -- Main ScreenGui
     self.gui = Instance.new("ScreenGui")
@@ -22,17 +27,44 @@ function GrayUI.new(title)
     self.mainFrame.Size = UDim2.new(0, 300, 0, 350)
     self.mainFrame.Parent = self.gui
     
+    -- Add corner rounding to main frame
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 6)
+    mainCorner.Parent = self.mainFrame
+    
+    -- Title Bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    titleBar.BorderSizePixel = 0
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.Parent = self.mainFrame
+    
+    -- Title Bar Corner (only top corners)
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 6)
+    titleCorner.Parent = titleBar
+    
+    -- Fix bottom corners of title bar
+    local titleBarStroke = Instance.new("UIStroke")
+    titleBarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    titleBarStroke.Color = Color3.fromRGB(50, 50, 50)
+    titleBarStroke.LineJoinMode = Enum.LineJoinMode.Round
+    titleBarStroke.Parent = titleBar
+    
     -- Title
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Name = "Title"
     titleLabel.Text = title or "GrayUI"
-    titleLabel.Font = Enum.Font.Gotham
+    titleLabel.Font = Enum.Font.GothamSemibold
     titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.TextSize = 18
+    titleLabel.TextSize = 16
     titleLabel.BackgroundTransparency = 1
-    titleLabel.Position = UDim2.new(0, 10, 0, 5)
-    titleLabel.Size = UDim2.new(0, 200, 0, 20)
-    titleLabel.Parent = self.mainFrame
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.Size = UDim2.new(0, 200, 1, 0)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = titleBar
     
     -- Minimize Button
     local minimizeBtn = Instance.new("TextButton")
@@ -42,9 +74,38 @@ function GrayUI.new(title)
     minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     minimizeBtn.TextSize = 18
     minimizeBtn.BackgroundTransparency = 1
-    minimizeBtn.Position = UDim2.new(1, -25, 0, 5)
-    minimizeBtn.Size = UDim2.new(0, 20, 0, 20)
-    minimizeBtn.Parent = self.mainFrame
+    minimizeBtn.Position = UDim2.new(1, -50, 0, 0)
+    minimizeBtn.Size = UDim2.new(0, 25, 1, 0)
+    minimizeBtn.Parent = titleBar
+    
+    -- Close Button
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Name = "CloseBtn"
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 16
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Position = UDim2.new(1, -25, 0, 0)
+    closeBtn.Size = UDim2.new(0, 25, 1, 0)
+    closeBtn.Parent = titleBar
+    
+    -- Resize Handle (bottom right corner)
+    local resizeHandle = Instance.new("Frame")
+    resizeHandle.Name = "ResizeHandle"
+    resizeHandle.BackgroundTransparency = 1
+    resizeHandle.Size = UDim2.new(0, 15, 0, 15)
+    resizeHandle.Position = UDim2.new(1, -15, 1, -15)
+    resizeHandle.Parent = self.mainFrame
+    
+    local resizeIcon = Instance.new("ImageLabel")
+    resizeIcon.Name = "ResizeIcon"
+    resizeIcon.Image = "rbxassetid://3926305904"
+    resizeIcon.ImageRectOffset = Vector2.new(924, 724)
+    resizeIcon.ImageRectSize = Vector2.new(36, 36)
+    resizeIcon.BackgroundTransparency = 1
+    resizeIcon.Size = UDim2.new(1, 0, 1, 0)
+    resizeIcon.Parent = resizeHandle
     
     -- Tab Container
     self.tabContainer = Instance.new("Frame")
@@ -54,6 +115,15 @@ function GrayUI.new(title)
     self.tabContainer.Size = UDim2.new(1, 0, 1, -30)
     self.tabContainer.Visible = true
     self.tabContainer.Parent = self.mainFrame
+    
+    -- Tab Buttons Container
+    self.tabButtonsContainer = Instance.new("Frame")
+    self.tabButtonsContainer.Name = "TabButtons"
+    self.tabButtonsContainer.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    self.tabButtonsContainer.BorderSizePixel = 0
+    self.tabButtonsContainer.Position = UDim2.new(0, 0, 0, 30)
+    self.tabButtonsContainer.Size = UDim2.new(1, 0, 0, 30)
+    self.tabButtonsContainer.Parent = self.mainFrame
     
     -- Tab Buttons
     self.tabs = {}
@@ -65,11 +135,18 @@ function GrayUI.new(title)
             -- Expand
             self.mainFrame.Size = UDim2.new(0, 300, 0, 350)
             self.tabContainer.Visible = true
+            self.tabButtonsContainer.Visible = true
         else
             -- Minimize
             self.mainFrame.Size = UDim2.new(0, 300, 0, 30)
             self.tabContainer.Visible = false
+            self.tabButtonsContainer.Visible = false
         end
+    end)
+    
+    -- Close functionality
+    closeBtn.MouseButton1Click:Connect(function()
+        self:Destroy()
     end)
     
     -- Dragging functionality
@@ -78,12 +155,25 @@ function GrayUI.new(title)
     local dragStart
     local startPos
     
-    local function update(input)
+    local function updateDrag(input)
         local delta = input.Position - dragStart
-        self.mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        
+        -- Keep window within screen bounds
+        local viewportSize = workspace.CurrentCamera.ViewportSize
+        local windowSize = self.mainFrame.AbsoluteSize
+        
+        newPos = UDim2.new(
+            math.clamp(newPos.X.Scale, 0, 1 - (windowSize.X / viewportSize.X)),
+            math.clamp(newPos.X.Offset, 0, viewportSize.X - windowSize.X),
+            math.clamp(newPos.Y.Scale, 0, 1 - (windowSize.Y / viewportSize.Y)),
+            math.clamp(newPos.Y.Offset, 0, viewportSize.Y - windowSize.Y)
+        )
+        
+        self.mainFrame.Position = newPos
     end
     
-    titleLabel.InputBegan:Connect(function(input)
+    titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
@@ -97,408 +187,87 @@ function GrayUI.new(title)
         end
     end)
     
-    titleLabel.InputChanged:Connect(function(input)
+    titleBar.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement then
             dragInput = input
         end
     end)
     
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
-            update(input)
+            updateDrag(input)
         end
+    end)
+    
+    -- Resizing functionality
+    local resizing
+    local resizeStart
+    local startSize
+    
+    resizeHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            resizing = true
+            resizeStart = input.Position
+            startSize = self.mainFrame.Size
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    resizing = false
+                end
+            end)
+        end
+    end)
+    
+    local function updateResize(input)
+        local delta = input.Position - resizeStart
+        local newSize = UDim2.new(
+            startSize.X.Scale,
+            math.max(MIN_WIDTH, startSize.X.Offset + delta.X),
+            startSize.Y.Scale,
+            math.max(MIN_HEIGHT, startSize.Y.Offset + delta.Y)
+        )
+        
+        self.mainFrame.Size = newSize
+        
+        -- Keep window within screen bounds if dragging near edges
+        local viewportSize = workspace.CurrentCamera.ViewportSize
+        local windowPos = self.mainFrame.AbsolutePosition
+        local windowSize = self.mainFrame.AbsoluteSize
+        
+        if windowPos.X + windowSize.X > viewportSize.X then
+            self.mainFrame.Position = UDim2.new(0, viewportSize.X - windowSize.X, self.mainFrame.Position.Y.Scale, self.mainFrame.Position.Y.Offset)
+        end
+        
+        if windowPos.Y + windowSize.Y > viewportSize.Y then
+            self.mainFrame.Position = UDim2.new(self.mainFrame.Position.X.Scale, self.mainFrame.Position.X.Offset, 0, viewportSize.Y - windowSize.Y)
+        end
+    end
+    
+    resizeHandle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and resizing then
+            updateResize(input)
+        end
+    end)
+    
+    -- Change cursor when hovering resize handle
+    resizeHandle.MouseEnter:Connect(function()
+        game:GetService("GuiService"):SetCursor("SizeNWSE")
+    end)
+    
+    resizeHandle.MouseLeave:Connect(function()
+        game:GetService("GuiService"):SetCursor("Arrow")
     end)
     
     return self
 end
 
-function GrayUI:Tab(name)
-    local tab = {}
-    tab.name = name
-    
-    -- Tab Button
-    tab.button = Instance.new("TextButton")
-    tab.button.Name = name .. "TabButton"
-    tab.button.Text = name
-    tab.button.Font = Enum.Font.Gotham
-    tab.button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tab.button.TextSize = 14
-    tab.button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    tab.button.BorderSizePixel = 0
-    tab.button.Position = UDim2.new(0, 10 + (#self.tabs * 70), 0, 0)
-    tab.button.Size = UDim2.new(0, 60, 0, 25)
-    tab.button.Parent = self.mainFrame
-    
-    -- Tab Frame
-    tab.frame = Instance.new("ScrollingFrame")
-    tab.frame.Name = name .. "TabFrame"
-    tab.frame.BackgroundTransparency = 1
-    tab.frame.Position = UDim2.new(0, 0, 0, 30)
-    tab.frame.Size = UDim2.new(1, 0, 1, -30)
-    tab.frame.Visible = false
-    tab.frame.ScrollingDirection = Enum.ScrollingDirection.Y
-    tab.frame.ScrollBarThickness = 5
-    tab.frame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tab.frame.Parent = self.tabContainer
-    
-    -- Tab content layout
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 5)
-    layout.Parent = tab.frame
-    
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tab.frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-    end)
-    
-    -- Tab button functionality
-    tab.button.MouseButton1Click:Connect(function()
-        self:SwitchTab(tab)
-    end)
-    
-    table.insert(self.tabs, tab)
-    
-    if #self.tabs == 1 then
-        self:SwitchTab(tab)
-    end
-    
-    return tab
-end
-
-function GrayUI:SwitchTab(tab)
-    if self.currentTab then
-        self.currentTab.frame.Visible = false
-        self.currentTab.button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    end
-    
-    self.currentTab = tab
-    tab.frame.Visible = true
-    tab.button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-end
-
-function GrayUI:Button(tab, text, callback)
-    local button = Instance.new("TextButton")
-    button.Name = text .. "Button"
-    button.Text = text
-    button.Font = Enum.Font.Gotham
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 14
-    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    button.BorderSizePixel = 0
-    button.Size = UDim2.new(0.9, 0, 0, 30)
-    button.Position = UDim2.new(0.05, 0, 0, 0)
-    button.Parent = tab.frame
-    
-    button.MouseButton1Click:Connect(callback)
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = button
-    
-    return button
-end
-
-function GrayUI:Toggle(tab, text, default, callback)
-    local toggle = {}
-    toggle.value = default or false
-    
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Name = text .. "Toggle"
-    toggleFrame.BackgroundTransparency = 1
-    toggleFrame.Size = UDim2.new(0.9, 0, 0, 30)
-    toggleFrame.Position = UDim2.new(0.05, 0, 0, 0)
-    toggleFrame.Parent = tab.frame
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Text = text
-    label.Font = Enum.Font.Gotham
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(0.7, 0, 1, 0)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = toggleFrame
-    
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Name = "ToggleButton"
-    toggleButton.Text = ""
-    toggleButton.BackgroundColor3 = toggle.value and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
-    toggleButton.Size = UDim2.new(0.2, 0, 0.6, 0)
-    toggleButton.Position = UDim2.new(0.8, 0, 0.2, 0)
-    toggleButton.Parent = toggleFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = toggleButton
-    
-    toggleButton.MouseButton1Click:Connect(function()
-        toggle.value = not toggle.value
-        toggleButton.BackgroundColor3 = toggle.value and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
-        if callback then callback(toggle.value) end
-    end)
-    
-    return toggle
-end
-
-function GrayUI:TextBox(tab, text, placeholder, callback)
-    local textBoxFrame = Instance.new("Frame")
-    textBoxFrame.Name = text .. "TextBox"
-    textBoxFrame.BackgroundTransparency = 1
-    textBoxFrame.Size = UDim2.new(0.9, 0, 0, 50)
-    textBoxFrame.Position = UDim2.new(0.05, 0, 0, 0)
-    textBoxFrame.Parent = tab.frame
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Text = text
-    label.Font = Enum.Font.Gotham
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1, 0, 0.4, 0)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = textBoxFrame
-    
-    local textBox = Instance.new("TextBox")
-    textBox.Name = "TextBox"
-    textBox.Text = ""
-    textBox.PlaceholderText = placeholder or ""
-    textBox.Font = Enum.Font.Gotham
-    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.TextSize = 14
-    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    textBox.BorderSizePixel = 0
-    textBox.Size = UDim2.new(1, 0, 0.6, 0)
-    textBox.Position = UDim2.new(0, 0, 0.4, 0)
-    textBox.Parent = textBoxFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = textBox
-    
-    textBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed and callback then
-            callback(textBox.Text)
-        end
-    end)
-    
-    return textBox
-end
-
-function GrayUI:Slider(tab, text, min, max, default, callback)
-    local slider = {}
-    slider.value = default or min
-    
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Name = text .. "Slider"
-    sliderFrame.BackgroundTransparency = 1
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, 60)
-    sliderFrame.Position = UDim2.new(0.05, 0, 0, 0)
-    sliderFrame.Parent = tab.frame
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Text = text
-    label.Font = Enum.Font.Gotham
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1, 0, 0.3, 0)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = sliderFrame
-    
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Name = "ValueLabel"
-    valueLabel.Text = tostring(slider.value)
-    valueLabel.Font = Enum.Font.Gotham
-    valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    valueLabel.TextSize = 14
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Size = UDim2.new(0.2, 0, 0.3, 0)
-    valueLabel.Position = UDim2.new(0.8, 0, 0, 0)
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = sliderFrame
-    
-    local sliderBar = Instance.new("Frame")
-    sliderBar.Name = "SliderBar"
-    sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    sliderBar.BorderSizePixel = 0
-    sliderBar.Size = UDim2.new(1, 0, 0.2, 0)
-    sliderBar.Position = UDim2.new(0, 0, 0.5, 0)
-    sliderBar.Parent = sliderFrame
-    
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Name = "SliderFill"
-    sliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Size = UDim2.new((slider.value - min) / (max - min), 0, 1, 0)
-    sliderFill.Position = UDim2.new(0, 0, 0, 0)
-    sliderFill.Parent = sliderBar
-    
-    local sliderButton = Instance.new("TextButton")
-    sliderButton.Name = "SliderButton"
-    sliderButton.Text = ""
-    sliderButton.BackgroundTransparency = 1
-    sliderButton.Size = UDim2.new(1, 0, 2, 0)
-    sliderButton.Position = UDim2.new(0, 0, -0.5, 0)
-    sliderButton.Parent = sliderBar
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = sliderBar
-    
-    local cornerFill = Instance.new("UICorner")
-    cornerFill.CornerRadius = UDim.new(0, 4)
-    cornerFill.Parent = sliderFill
-    
-    local function updateSlider(input)
-        local pos = UDim2.new(math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1), 0, 0, 0)
-        sliderFill.Size = pos
-        
-        local value = math.floor(min + (max - min) * pos.X.Scale)
-        if value ~= slider.value then
-            slider.value = value
-            valueLabel.Text = tostring(value)
-            if callback then callback(value) end
-        end
-    end
-    
-    sliderButton.MouseButton1Down:Connect(function()
-        updateSlider(game:GetService("UserInputService"):GetMouseLocation())
-        
-        local connection
-        connection = game:GetService("UserInputService").InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement then
-                updateSlider(input)
-            end
-        end)
-        
-        game:GetService("UserInputService").InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                connection:Disconnect()
-            end
-        end)
-    end)
-    
-    return slider
-end
-
-function GrayUI:Dropdown(tab, text, options, callback)
-    local dropdown = {}
-    dropdown.open = false
-    dropdown.selected = nil
-    
-    local dropdownFrame = Instance.new("Frame")
-    dropdownFrame.Name = text .. "Dropdown"
-    dropdownFrame.BackgroundTransparency = 1
-    dropdownFrame.Size = UDim2.new(0.9, 0, 0, 30)
-    dropdownFrame.Position = UDim2.new(0.05, 0, 0, 0)
-    dropdownFrame.Parent = tab.frame
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Text = text
-    label.Font = Enum.Font.Gotham
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(0.7, 0, 1, 0)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = dropdownFrame
-    
-    local dropdownButton = Instance.new("TextButton")
-    dropdownButton.Name = "DropdownButton"
-    dropdownButton.Text = "▼"
-    dropdownButton.Font = Enum.Font.Gotham
-    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dropdownButton.TextSize = 14
-    dropdownButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    dropdownButton.BorderSizePixel = 0
-    dropdownButton.Size = UDim2.new(0.2, 0, 0.8, 0)
-    dropdownButton.Position = UDim2.new(0.8, 0, 0.1, 0)
-    dropdownButton.Parent = dropdownFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = dropdownButton
-    
-    local optionsFrame = Instance.new("Frame")
-    optionsFrame.Name = "OptionsFrame"
-    optionsFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    optionsFrame.BorderSizePixel = 0
-    optionsFrame.Position = UDim2.new(0, 0, 1, 5)
-    optionsFrame.Size = UDim2.new(1, 0, 0, 0)
-    optionsFrame.Visible = false
-    optionsFrame.Parent = dropdownFrame
-    
-    local optionsLayout = Instance.new("UIListLayout")
-    optionsLayout.Padding = UDim.new(0, 2)
-    optionsLayout.Parent = optionsFrame
-    
-    local cornerOptions = Instance.new("UICorner")
-    cornerOptions.CornerRadius = UDim.new(0, 4)
-    cornerOptions.Parent = optionsFrame
-    
-    for i, option in ipairs(options) do
-        local optionButton = Instance.new("TextButton")
-        optionButton.Name = option .. "Option"
-        optionButton.Text = option
-        optionButton.Font = Enum.Font.Gotham
-        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        optionButton.TextSize = 14
-        optionButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        optionButton.BorderSizePixel = 0
-        optionButton.Size = UDim2.new(1, -10, 0, 25)
-        optionButton.Position = UDim2.new(0, 5, 0, 0)
-        optionButton.Parent = optionsFrame
-        
-        local cornerOption = Instance.new("UICorner")
-        cornerOption.CornerRadius = UDim.new(0, 4)
-        cornerOption.Parent = optionButton
-        
-        optionButton.MouseButton1Click:Connect(function()
-            dropdown.selected = option
-            dropdownButton.Text = option
-            dropdown.open = false
-            optionsFrame.Visible = false
-            optionsFrame.Size = UDim2.new(1, 0, 0, 0)
-            if callback then callback(option) end
-        end)
-    end
-    
-    dropdownButton.MouseButton1Click:Connect(function()
-        dropdown.open = not dropdown.open
-        if dropdown.open then
-            optionsFrame.Visible = true
-            optionsFrame.Size = UDim2.new(1, 0, 0, #options * 27 + 5)
-        else
-            optionsFrame.Visible = false
-            optionsFrame.Size = UDim2.new(1, 0, 0, 0)
-        end
-    end)
-    
-    return dropdown
-end
-
-function GrayUI:DisableHitbox()
-    local hitbox = Instance.new("TextButton")
-    hitbox.Name = "DisableHitbox"
-    hitbox.Text = ""
-    hitbox.BackgroundTransparency = 1
-    hitbox.Size = UDim2.new(1, 0, 1, 0)
-    hitbox.Position = UDim2.new(0, 0, 0, 0)
-    hitbox.ZIndex = -1
-    hitbox.Parent = self.mainFrame
-    
-    return hitbox
-end
-
-function GrayUI:Destroy()
-    self.gui:Destroy()
-end
+-- [Rest of your existing GrayUI methods (Tab, Button, Toggle, etc.) can remain the same]
+-- Just paste all your existing methods here...
 
 return GrayUI
